@@ -1,0 +1,6 @@
+## Installation
+
+1. Repository klonen
+2. `.env` Datei erstellen (basierend auf `.env.example`)
+3. TMDb API Key eintragen: https://www.themoviedb.org/settings/api
+4. `docker-compose up` starten
