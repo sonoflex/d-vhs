@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="de" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D-VHS</title>
+    <!-- Google Fonts: Inter 100 + 300 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; font-weight: 300; }
+        h1, .card-title { font-weight: 100; }
+        
+        /* Kachelansicht Styles */
+        .movie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .movie-tile {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            aspect-ratio: 2/3;
+            background: #2c2c2c;
+        }
+        
+        .movie-tile:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+        }
+        
+        .movie-tile img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .movie-tile-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            padding: 1rem 0.75rem 0.75rem;
+        }
+        
+        .movie-tile-title {
+            font-size: 0.9rem;
+            font-weight: 300;
+            margin: 0;
+            color: white;
+        }
+        
+        .movie-tile-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .movie-tile-status {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            font-size: 0.7rem;
+            background: rgba(255, 193, 7, 0.9);
+            color: #000;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .movie-tile-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background: #343a40;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body class="bg-dark text-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">D-VHS Filmsammlung</h1>
+            <a href="{{ url_for('benutzer_liste') }}" class="btn btn-outline-light">
+                Benutzer verwalten
+            </a>
+        </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'warning' if category == 'warning' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Filter und Ansicht -->
+        <div class="card card-body bg-secondary text-light mb-4">
+            <div class="row g-3 align-items-end">
+                <!-- Besitzer-Filter -->
+                <div class="col-md-4">
+                    <label class="form-label">Nach Besitzer filtern</label>
+                    <select class="form-select" id="besitzerFilter" onchange="applyFilter()">
+                        <option value="" {% if not besitzer_filter %}selected{% endif %}>Alle Filme</option>
+                        <option value="ohne" {% if besitzer_filter == 'ohne' %}selected{% endif %}>Ohne Besitzer</option>
+                        {% for user in benutzer %}
+                            <option value="{{ user.name }}" {% if besitzer_filter == user.name %}selected{% endif %}>
+                                {{ user.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Ansicht umschalten -->
+                <div class="col-md-4">
+                    <label class="form-label">Ansicht</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="ansicht" id="ansichtListe" value="liste" 
+                               {% if ansicht == 'liste' %}checked{% endif %} onchange="applyFilter()">
+                        <label class="btn btn-outline-light" for="ansichtListe">Liste</label>
+                        
+                        <input type="radio" class="btn-check" name="ansicht" id="ansichtKacheln" value="kacheln" 
+                               {% if ansicht == 'kacheln' %}checked{% endif %} onchange="applyFilter()">
+                        <label class="btn btn-outline-light" for="ansichtKacheln">Kacheln</label>
+                    </div>
+                </div>
+                
+                <!-- Film hinzufügen Button -->
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#addForm">
+                        Neuen Film hinzufügen
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Collapse Formular -->
+        <div class="collapse mb-4" id="addForm">
+            <div class="card card-body bg-secondary text-light">
+                <form action="{{ url_for('add_film') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">TMDb-ID oder URL</label>
+                        <input type="text" class="form-control" name="tmdb_id" placeholder="348 oder https://www.themoviedb.org/movie/348-alien" required>
+                        <div class="form-text text-light">
+                            Gib die TMDb-ID ein (z.B. 348 für Alien) oder die komplette TMDb-URL
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Filmliste / Kacheln -->
+        {% if filme %}
+            <!-- Listenansicht -->
+            {% if ansicht == 'liste' %}
+                {% for film in filme %}
+                    <div class="card mb-3 bg-dark text-light border-light">
+                        <div class="row g-0">
+                            {% if film.poster_url %}
+                            <div class="col-md-2">
+                                <img src="{{ film.poster_url }}" class="img-fluid rounded-start" alt="{{ film.title }} Poster">
+                            </div>
+                            <div class="col-md-10">
+                            {% else %}
+                            <div class="col-md-12">
+                            {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        {{ film.title }}{% if film.year %} ({{ film.year }}){% endif %}
+                                        {% if film.besitzer %}
+                                            <span class="badge bg-primary ms-2">{{ film.besitzer }}</span>
+                                        {% endif %}
+                                    </h5>
+                                    {% if film.verliehen_an %}
+                                        <p class="small text-warning mb-2">
+                                            📀 Verliehen an {{ film.verliehen_an }} seit {{ film.verliehen_seit.strftime('%d.%m.%Y') }}
+                                        </p>
+                                    {% endif %}
+                                    <p class="card-text">{{ film.beschreibung or 'Keine Beschreibung verfügbar' }}</p>
+                                    {% if film.tmdb_id %}
+                                        <p class="small text-muted">
+                                            <a href="https://www.themoviedb.org/movie/{{ film.tmdb_id }}" target="_blank" class="text-info">
+                                                Auf TMDb ansehen
+                                            </a>
+                                        </p>
+                                    {% endif %}
+                                    <a href="{{ url_for('film_detail', film_id=film.id) }}" class="btn btn-info btn-sm">Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            
+            <!-- Kachelansicht -->
+            {% else %}
+                <div class="movie-grid">
+                    {% for film in filme %}
+                        <a href="{{ url_for('film_detail', film_id=film.id) }}" class="text-decoration-none">
+                            <div class="movie-tile">
+                                {% if film.poster_url %}
+                                    <img src="{{ film.poster_url }}" alt="{{ film.title }}">
+                                {% else %}
+                                    <div class="movie-tile-placeholder">
+                                        <span>Kein Poster</span>
+                                    </div>
+                                {% endif %}
+                                
+                                {% if film.verliehen_an %}
+                                    <div class="movie-tile-status">
+                                        📀 Verliehen
+                                    </div>
+                                {% endif %}
+                                
+                                {% if film.besitzer %}
+                                    <span class="badge bg-primary movie-tile-badge">{{ film.besitzer }}</span>
+                                {% endif %}
+                                
+                                <div class="movie-tile-overlay">
+                                    <p class="movie-tile-title">
+                                        {{ film.title }}{% if film.year %} ({{ film.year }}){% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                {% if besitzer_filter %}
+                    Keine Filme für diesen Filter gefunden.
+                {% else %}
+                    Noch keine Filme in der Sammlung. Füge deinen ersten Film hinzu!
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function applyFilter() {
+            const besitzer = document.getElementById('besitzerFilter').value;
+            const ansicht = document.querySelector('input[name="ansicht"]:checked').value;
+            
+            const params = new URLSearchParams();
+            if (besitzer) params.append('besitzer', besitzer);
+            params.append('ansicht', ansicht);
+            
+            window.location.href = '?' + params.toString();
+        }
+    </script>
+</body>
+</html>

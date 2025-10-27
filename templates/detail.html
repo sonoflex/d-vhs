@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="de" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ film.title }} - D-VHS</title>
+    <!-- Google Fonts: Inter 100 + 300 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            font-weight: 300; 
+        }
+        h1, h2 { 
+            font-weight: 100; 
+        }
+        .poster-large {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .detail-section {
+            margin-bottom: 2rem;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #adb5bd;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-value {
+            font-size: 1.1rem;
+            margin-top: 0.25rem;
+        }
+        .back-button {
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body class="bg-dark text-light">
+    <div class="container py-5">
+        <!-- Zurück Button -->
+        <div class="back-button">
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                ← Zurück zur Übersicht
+            </a>
+        </div>
+
+        <div class="row">
+            <!-- Poster Spalte -->
+            <div class="col-md-4 mb-4">
+                {% if film.poster_url %}
+                    <img src="{{ film.poster_url }}" class="poster-large" alt="{{ film.title }} Poster">
+                {% else %}
+                    <div class="bg-secondary d-flex align-items-center justify-content-center rounded" style="height: 450px;">
+                        <span class="text-muted">Kein Poster verfügbar</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Info Spalte -->
+            <div class="col-md-8">
+                <h1 class="mb-3">{{ film.title }}</h1>
+                
+                <!-- Jahr -->
+                {% if film.year %}
+                <div class="detail-section">
+                    <div class="info-label">Erscheinungsjahr</div>
+                    <div class="info-value">{{ film.year }}</div>
+                </div>
+                {% endif %}
+
+                <!-- Beschreibung -->
+                <div class="detail-section">
+                    <div class="info-label">Handlung</div>
+                    <div class="info-value">
+                        {{ film.beschreibung or 'Keine Beschreibung verfügbar' }}
+                    </div>
+                </div>
+
+                <!-- Besitzer -->
+                <div class="detail-section">
+                    <div class="info-label">Besitzer</div>
+                    <div class="info-value">
+                        {% if film.besitzer %}
+                            <span class="badge bg-primary fs-6">{{ film.besitzer }}</span>
+                        {% else %}
+                            <span class="text-muted">Kein Besitzer zugewiesen</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Besitzer ändern Formular -->
+                    <form action="{{ url_for('update_besitzer', film_id=film.id) }}" method="POST" class="mt-3">
+                        <div class="row g-2">
+                            <div class="col-auto">
+                                <select name="besitzer" class="form-select form-select-sm">
+                                    <option value="">-- Kein Besitzer --</option>
+                                    {% for user in benutzer %}
+                                        <option value="{{ user.name }}" {% if film.besitzer == user.name %}selected{% endif %}>
+                                            {{ user.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-outline-light">Besitzer ändern</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Verleih-Status -->
+                <div class="detail-section">
+                    <div class="info-label">Verleih-Status</div>
+                    <div class="info-value">
+                        {% if film.verliehen_an %}
+                            <div class="alert alert-warning mb-3">
+                                <strong>Verliehen an {{ film.verliehen_an }}</strong><br>
+                                <small>Seit {{ film.verliehen_seit.strftime('%d.%m.%Y') }} 
+                                ({{ (datetime.now() - film.verliehen_seit).days }} Tage)</small>
+                            </div>
+                            
+                            <!-- Rückgabe-Button -->
+                            <form action="{{ url_for('zurueckgeben', film_id=film.id) }}" method="POST">
+                                <button type="submit" class="btn btn-success">
+                                    Film zurückgeben
+                                </button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted mb-3 d-block">Film ist verfügbar</span>
+                            
+                            <!-- Verleihen-Formular -->
+                            <form action="{{ url_for('verleihen', film_id=film.id) }}" method="POST">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label small">An wen verleihen?</label>
+                                        <select name="verliehen_an" class="form-select form-select-sm" required>
+                                            <option value="">-- Benutzer auswählen --</option>
+                                            {% for user in benutzer %}
+                                                <option value="{{ user.name }}">{{ user.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small">Verliehen seit</label>
+                                        <input type="date" 
+                                               name="verliehen_datum" 
+                                               class="form-control form-control-sm" 
+                                               value="{{ datetime.now().strftime('%Y-%m-%d') }}"
+                                               max="{{ datetime.now().strftime('%Y-%m-%d') }}">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="submit" class="btn btn-sm btn-warning">Verleihen</button>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">
+                                    Standard: Heutiges Datum. Kann angepasst werden für nachträgliche Einträge.
+                                </small>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- TMDb Link -->
+                {% if film.tmdb_id %}
+                <div class="detail-section">
+                    <a href="https://www.themoviedb.org/movie/{{ film.tmdb_id }}?language=de" 
+                       target="_blank" 
+                       class="btn btn-outline-info">
+                        Auf TMDb ansehen →
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- Aktionen -->
+                <div class="mt-4 pt-4 border-top border-secondary">
+                    <h5 class="mb-3">Aktionen</h5>
+                    <form action="{{ url_for('delete_film', film_id=film.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" 
+                                class="btn btn-outline-danger" 
+                                onclick="return confirm('Film \"{{ film.title }}\" wirklich aus der Sammlung löschen?')">
+                            Film löschen
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
