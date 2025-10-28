@@ -335,6 +335,23 @@
                 {% endif %}
             </div>
         {% endif %}
+
+        <!-- Footer mit TMDB Attribution -->
+        <footer class="mt-5 pt-4 border-top border-secondary">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <p class="text-muted small mb-3">
+                        Diese Webseite nutzt Daten von:
+                    </p>
+                    <a href="https://www.themoviedb.org/" target="_blank" class="d-inline-block">
+                        <img src="{{ url_for('static', filename='blue_long_2.svg') }}" alt="TMDB Logo" style="height: 10px; opacity: 0.8;">
+                    </a>
+                    <p class="text-muted small mt-3">
+                        TMDB ist eine kostenlose und von der Community getriebene Filmdatenbank
+                    </p>
+                </div>
+            </div>
+        </footer>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

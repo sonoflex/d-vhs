@@ -11,8 +11,19 @@ from functools import wraps
 # Flask Setup
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
-db_path = os.path.join(os.getcwd(), "data", "filme.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+# Debugging: Prüfe welche Datenbank verwendet wird
+if os.environ.get("DATABASE_URL"):
+    database_url = os.environ.get("DATABASE_URL")
+    logging.info(f"✓ DATABASE_URL gefunden: {database_url[:50]}...")
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    logging.info("✓ Verwende PostgreSQL")
+else:
+    # Local Development: SQLite
+    db_path = os.path.join(os.getcwd(), "data", "filme.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    logging.warning("⚠ DATABASE_URL nicht gesetzt - verwende SQLite (Daten gehen nach Deployment verloren!)")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
