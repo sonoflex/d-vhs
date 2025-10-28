@@ -40,6 +40,7 @@ class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
     
     def set_password(self, password):
         """Passwort hashen und speichern"""
@@ -54,7 +55,7 @@ with app.app_context():
     os.makedirs("data", exist_ok=True)
     db.create_all()
     
-    # Initial-Benutzer aus .env anlegen falls noch nicht vorhanden
+   # Initial-Benutzer aus .env anlegen falls noch nicht vorhanden
     if Benutzer.query.count() == 0:
         initial_users_env = os.environ.get("INITIAL_USERS", "")
         
@@ -65,8 +66,9 @@ with app.app_context():
                     username, password = user_pair.strip().split(":", 1)
                     user = Benutzer(name=username.strip())
                     user.set_password(password.strip())
+                    user.is_admin = True  # Initial-Benutzer sind Admins
                     db.session.add(user)
-                    logging.info(f"Initial-Benutzer '{username}' angelegt")
+                    logging.info(f"Initial-Admin-Benutzer '{username}' angelegt")
             db.session.commit()
         else:
             logging.warning("INITIAL_USERS nicht in .env definiert")
@@ -78,6 +80,21 @@ def login_erforderlich(f):
         if "benutzer_id" not in session:
             flash("Du musst dich anmelden", "warning")
             return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_erforderlich(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "benutzer_id" not in session:
+            flash("Du musst dich anmelden", "warning")
+            return redirect(url_for("login"))
+        
+        user = Benutzer.query.filter_by(id=session.get("benutzer_id")).first()
+        if not user or not user.is_admin:
+            flash("Du hast keine Admin-Berechtigung", "warning")
+            return redirect(url_for("index"))
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -156,7 +173,13 @@ def fetch_film_data_tmdb(tmdb_id):
 # Routen
 @app.context_processor
 def inject_user():
-    return dict(session=session)
+    user_admin = False
+    if session.get("benutzer_id"):
+        user = Benutzer.query.filter_by(id=session.get("benutzer_id")).first()
+        user_admin = user.is_admin if user else False
+    
+    return dict(session=session, user_admin=user_admin)
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -168,6 +191,7 @@ def login():
         if user and user.check_password(password):
             session["benutzer_id"] = user.id
             session["benutzer_name"] = user.name
+            session["benutzer_admin"] = user.is_admin
             flash(f"Willkommen {name}!", "success")
             return redirect(url_for("index"))
         else:
@@ -446,7 +470,7 @@ def add_benutzer():
     return redirect(url_for("benutzer_liste"))
 
 @app.route("/benutzer/delete/<int:user_id>", methods=["POST"])
-@login_erforderlich
+@admin_erforderlich
 def delete_benutzer(user_id):
     user = Benutzer.query.get_or_404(user_id)
     name = user.name
