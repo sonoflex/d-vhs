@@ -219,6 +219,9 @@
                                         {{ film.title }}{% if film.year %} ({{ film.year }}){% endif %}
                                         {% if film.besitzer %}
                                             <span class="badge bg-primary ms-2">{{ film.besitzer }}</span>
+                                            {% if film.wunschliste %}
+                                                <span class="badge bg-secondary ms-1">Wunschliste</span>
+                                            {% endif %}
                                         {% endif %}
                                     </h5>
                                     {% if film.verliehen_an %}

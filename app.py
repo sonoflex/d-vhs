@@ -34,6 +34,7 @@ class Film(db.Model):
     verliehen_an = db.Column(db.String(100))
     verliehen_seit = db.Column(db.DateTime)
     genres = db.Column(db.String(500))  # Komma-separierte Liste von Genres
+    wunschliste = db.Column(db.Boolean, default=True)
 
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -248,13 +249,18 @@ def add_film():
             flash(f"Film '{existing.title}' ist bereits in der Sammlung", "warning")
             return redirect(url_for("index"))
         
+         # Hole aktuellen Benutzer
+        current_user = Benutzer.query.filter_by(id=session.get("benutzer_id")).first()
+        
         film = Film(
             title=film_data.get("title"),
             year=int(film_data.get("release_date", "0")[:4]) if film_data.get("release_date") else None,
             beschreibung=film_data.get("overview", ""),
             tmdb_id=film_data.get("tmdb_id"),
             poster_url=film_data.get("poster_url"),
-            genres=film_data.get("genres", "")
+            genres=film_data.get("genres", ""),
+            besitzer=current_user.name if current_user else None,
+            wunschliste=True
         )
         
         db.session.add(film)
@@ -304,6 +310,20 @@ def update_besitzer(film_id):
         flash(f"'{film.title}' gehört jetzt {besitzer}", "success")
     
     db.session.commit()
+    return redirect(url_for("film_detail", film_id=film_id))
+
+@app.route("/film/<int:film_id>/wunschliste", methods=["POST"])
+@login_erforderlich
+def toggle_wunschliste(film_id):
+    film = Film.query.get_or_404(film_id)
+    film.wunschliste = not film.wunschliste
+    db.session.commit()
+    
+    if film.wunschliste:
+        flash(f"'{film.title}' zur Wunschliste hinzugefügt", "success")
+    else:
+        flash(f"'{film.title}' von der Wunschliste entfernt", "success")
+    
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route("/film/<int:film_id>/verleihen", methods=["POST"])
