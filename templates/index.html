@@ -210,22 +210,22 @@
                             {% endfor %}
                         </select>
                     </div>
+
+                    <!-- Jahr-Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label">Erscheinungsjahr von</label>
+                        <input type="number" class="form-control" id="jahrVon" value="{{ jahr_von }}" placeholder="z.B. 1980">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label">bis</label>
+                        <input type="number" class="form-control" id="jahrBis" value="{{ jahr_bis }}" placeholder="z.B. 2024">
+                    </div>
+                    
+                    <div class="col-auto d-flex align-items-end">
+                        <button type="button" class="btn btn-primary" onclick="applyFilter()">Jahr Filtern</button>
+                    </div>
                 </div>
-                <!-- Jahr-Filter -->
-                <div class="col-md-2">
-                    <label class="form-label">Erscheinungsjahr von</label>
-                    <input type="number" class="form-control" id="jahrVon" value="{{ jahr_von }}" placeholder="z.B. 1980">
-                </div>
-                
-                <div class="col-md-2">
-                    <label class="form-label">bis</label>
-                    <input type="number" class="form-control" id="jahrBis" value="{{ jahr_bis }}" placeholder="z.B. 2024">
-                </div>
-                
-                <div class="col-auto">
-                    <button type="button" class="btn btn-primary" onclick="applyFilter()">Filtern</button>
-                </div>
-                
             </div>
         </div>
         
@@ -250,11 +250,13 @@
             <!-- Listenansicht -->
             {% if ansicht == 'liste' %}
                 {% for film in filme %}
-                    <div class="card mb-3 bg-dark text-light border-light">
+                    <div class="card mb-3 bg-dark text-light" style="background-color: #1b1f23 !important; border: none;">
                         <div class="row g-0">
                             {% if film.poster_url %}
                             <div class="col-md-2">
-                                <img src="{{ film.poster_url }}" class="img-fluid rounded-start" alt="{{ film.title }} Poster">
+                                <a href="{{ url_for('film_detail', film_id=film.id) }}" style="text-decoration: none;">
+                                    <img src="{{ film.poster_url }}" class="img-fluid rounded-start" alt="{{ film.title }} Poster" style="cursor: pointer;">
+                                </a>
                             </div>
                             <div class="col-md-10">
                             {% else %}
@@ -339,11 +341,14 @@
     <script>
         function applyFilter() {
             const besitzer = document.getElementById('besitzerFilter').value;
-            const ansicht = document.querySelector('input[name="ansicht"]:checked')?.value || 'liste';
             const jahrVon = document.getElementById('jahrVon').value;
             const jahrBis = document.getElementById('jahrBis').value;
             const wunschliste = document.getElementById('wunschlisteFilter').value;
             const genre = document.getElementById('genreFilter').value;
+            
+            // Aktuelle Ansicht aus URL auslesen
+            const urlParams = new URLSearchParams(window.location.search);
+            const ansicht = urlParams.get('ansicht') || 'kacheln';
             
             const params = new URLSearchParams();
             if (besitzer) params.append('besitzer', besitzer);

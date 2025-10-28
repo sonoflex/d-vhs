@@ -187,7 +187,7 @@ def logout():
 def index():
     # Filter nach Besitzer
     besitzer_filter = request.args.get("besitzer", "")
-    ansicht = request.args.get("ansicht", "liste")
+    ansicht = request.args.get("ansicht", "kacheln")
     
     # Filter nach Jahr (von bis)
     jahr_von = request.args.get("jahr_von", "")
