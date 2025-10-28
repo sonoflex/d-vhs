@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 import logging
 import os
 import re
 from datetime import datetime
+from functools import wraps
 
 # Flask Setup
 app = Flask(__name__)
@@ -27,28 +29,55 @@ class Film(db.Model):
     year = db.Column(db.Integer)
     beschreibung = db.Column(db.Text)
     tmdb_id = db.Column(db.String(20))
-    poster_url = db.Column(db.String(500))  # Für das Filmplakat
-    besitzer = db.Column(db.String(100))  # Besitzer des Films
-    verliehen_an = db.Column(db.String(100))  # An wen verliehen
-    verliehen_seit = db.Column(db.DateTime)  # Seit wann verliehen
+    poster_url = db.Column(db.String(500))
+    besitzer = db.Column(db.String(100))
+    verliehen_an = db.Column(db.String(100))
+    verliehen_seit = db.Column(db.DateTime)
 
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    
+    def set_password(self, password):
+        """Passwort hashen und speichern"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Passwort überprüfen"""
+        return check_password_hash(self.password_hash, password)
 
 # DB initialisieren
 with app.app_context():
     os.makedirs("data", exist_ok=True)
     db.create_all()
     
-    # Initial-Benutzer anlegen falls noch nicht vorhanden
+    # Initial-Benutzer aus .env anlegen falls noch nicht vorhanden
     if Benutzer.query.count() == 0:
-        initial_users = ["Sonoflex", "konnexus"]
-        for username in initial_users:
-            user = Benutzer(name=username)
-            db.session.add(user)
-        db.session.commit()
-        logging.info("Initial-Benutzer angelegt")
+        initial_users_env = os.environ.get("INITIAL_USERS", "")
+        
+        if initial_users_env:
+            # Format: "username:password,username:password"
+            for user_pair in initial_users_env.split(","):
+                if ":" in user_pair:
+                    username, password = user_pair.strip().split(":", 1)
+                    user = Benutzer(name=username.strip())
+                    user.set_password(password.strip())
+                    db.session.add(user)
+                    logging.info(f"Initial-Benutzer '{username}' angelegt")
+            db.session.commit()
+        else:
+            logging.warning("INITIAL_USERS nicht in .env definiert")
+
+# Login-Decorator
+def login_erforderlich(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "benutzer_id" not in session:
+            flash("Du musst dich anmelden", "warning")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def extract_tmdb_id(input_str):
     """
@@ -91,7 +120,7 @@ def fetch_film_data_tmdb(tmdb_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}"
     params = {
         "api_key": TMDB_API_KEY,
-        "language": "de-DE"  # Deutsche Übersetzungen
+        "language": "de-DE"
     }
     
     response = requests.get(url, params=params, timeout=10)
@@ -104,7 +133,7 @@ def fetch_film_data_tmdb(tmdb_id):
     if "title" not in data:
         raise ValueError(f"Kein Film mit TMDb-ID {movie_id} gefunden")
     
-    # Erstelle vollständige Poster-URL (TMDb Base URL + Größe + Pfad)
+    # Erstelle vollständige Poster-URL
     poster_url = None
     if data.get("poster_path"):
         poster_url = f"https://image.tmdb.org/t/p/w500{data.get('poster_path')}"
@@ -118,6 +147,34 @@ def fetch_film_data_tmdb(tmdb_id):
     }
 
 # Routen
+@app.context_processor
+def inject_user():
+    return dict(session=session)
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        name = request.form.get("name")
+        password = request.form.get("password")
+        
+        user = Benutzer.query.filter_by(name=name).first()
+        
+        if user and user.check_password(password):
+            session["benutzer_id"] = user.id
+            session["benutzer_name"] = user.name
+            flash(f"Willkommen {name}!", "success")
+            return redirect(url_for("index"))
+        else:
+            flash("Ungültiger Benutzername oder Passwort", "error")
+    
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    name = session.get("benutzer_name")
+    session.clear()
+    flash(f"Auf Wiedersehen {name}!", "info")
+    return redirect(url_for("index"))
+
 @app.route("/")
 def index():
     # Filter nach Besitzer
@@ -139,6 +196,7 @@ def index():
                           besitzer_filter=besitzer_filter, ansicht=ansicht)
 
 @app.route("/add", methods=["POST"])
+@login_erforderlich
 def add_film():
     tmdb_id = request.form.get("tmdb_id")
     
@@ -199,16 +257,15 @@ def film_detail(film_id):
     return render_template("detail.html", film=film, benutzer=benutzer, datetime=datetime)
 
 @app.route("/film/<int:film_id>/besitzer", methods=["POST"])
+@login_erforderlich
 def update_besitzer(film_id):
     film = Film.query.get_or_404(film_id)
     besitzer = request.form.get("besitzer")
     
-    # Leerer String bedeutet "kein Besitzer"
     if besitzer == "":
         film.besitzer = None
         flash(f"Besitzer für '{film.title}' entfernt", "success")
     else:
-        # Prüfe ob Benutzer existiert
         user = Benutzer.query.filter_by(name=besitzer).first()
         if not user:
             flash(f"Benutzer '{besitzer}' nicht gefunden", "error")
@@ -221,6 +278,7 @@ def update_besitzer(film_id):
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route("/film/<int:film_id>/verleihen", methods=["POST"])
+@login_erforderlich
 def verleihen(film_id):
     film = Film.query.get_or_404(film_id)
     verliehen_an = request.form.get("verliehen_an")
@@ -230,18 +288,15 @@ def verleihen(film_id):
         flash("Bitte einen Benutzer auswählen", "error")
         return redirect(url_for("film_detail", film_id=film_id))
     
-    # Prüfe ob Benutzer existiert
     user = Benutzer.query.filter_by(name=verliehen_an).first()
     if not user:
         flash(f"Benutzer '{verliehen_an}' nicht gefunden", "error")
         return redirect(url_for("film_detail", film_id=film_id))
     
-    # Prüfe ob bereits verliehen
     if film.verliehen_an:
         flash(f"Film ist bereits an {film.verliehen_an} verliehen", "warning")
         return redirect(url_for("film_detail", film_id=film_id))
     
-    # Datum parsen oder heutiges Datum verwenden
     if verliehen_datum:
         try:
             verliehen_seit = datetime.strptime(verliehen_datum, "%Y-%m-%d")
@@ -259,6 +314,7 @@ def verleihen(film_id):
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route("/film/<int:film_id>/zurueckgeben", methods=["POST"])
+@login_erforderlich
 def zurueckgeben(film_id):
     film = Film.query.get_or_404(film_id)
     
@@ -275,9 +331,9 @@ def zurueckgeben(film_id):
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route("/benutzer")
+@login_erforderlich
 def benutzer_liste():
     benutzer = Benutzer.query.order_by(Benutzer.name).all()
-    # Zähle Filme pro Benutzer
     benutzer_mit_count = []
     for user in benutzer:
         filme_count = Film.query.filter_by(besitzer=user.name).count()
@@ -288,20 +344,26 @@ def benutzer_liste():
     return render_template("benutzer.html", benutzer_data=benutzer_mit_count)
 
 @app.route("/benutzer/add", methods=["POST"])
+@login_erforderlich
 def add_benutzer():
     name = request.form.get("name", "").strip()
+    password = request.form.get("password", "").strip()
     
     if not name:
         flash("Bitte einen Namen eingeben", "error")
         return redirect(url_for("benutzer_liste"))
     
-    # Prüfe ob Benutzer bereits existiert
+    if not password:
+        flash("Bitte ein Passwort eingeben", "error")
+        return redirect(url_for("benutzer_liste"))
+    
     existing = Benutzer.query.filter_by(name=name).first()
     if existing:
         flash(f"Benutzer '{name}' existiert bereits", "warning")
         return redirect(url_for("benutzer_liste"))
     
     user = Benutzer(name=name)
+    user.set_password(password)
     db.session.add(user)
     db.session.commit()
     
@@ -309,11 +371,11 @@ def add_benutzer():
     return redirect(url_for("benutzer_liste"))
 
 @app.route("/benutzer/delete/<int:user_id>", methods=["POST"])
+@login_erforderlich
 def delete_benutzer(user_id):
     user = Benutzer.query.get_or_404(user_id)
     name = user.name
     
-    # Prüfe ob Benutzer noch Filme besitzt
     filme_count = Film.query.filter_by(besitzer=name).count()
     if filme_count > 0:
         flash(f"Benutzer '{name}' kann nicht gelöscht werden, da er noch {filme_count} Film(e) besitzt", "error")
@@ -326,6 +388,7 @@ def delete_benutzer(user_id):
     return redirect(url_for("benutzer_liste"))
 
 @app.route("/delete/<int:film_id>", methods=["POST"])
+@login_erforderlich
 def delete_film(film_id):
     film = Film.query.get_or_404(film_id)
     title = film.title

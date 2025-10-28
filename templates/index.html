@@ -87,11 +87,28 @@
 </head>
 <body class="bg-dark text-light">
     <div class="container py-5">
+        <!-- Login/Logout Bar -->
+        <div class="card card-body bg-secondary text-light mb-4 p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    {% if session.get('benutzer_name') %}
+                        <span class="badge bg-success me-2">Angemeldet als: {{ session.get('benutzer_name') }}</span>
+                        <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">Abmelden</a>
+                    {% else %}
+                        <span class="text-muted me-3">Nicht angemeldet</span>
+                        <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-light">Anmelden</a>
+                    {% endif %}
+                </div>
+                {% if session.get('benutzer_name') %}
+                    <a href="{{ url_for('benutzer_liste') }}" class="btn btn-outline-light btn-sm">
+                        Benutzer verwalten
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="mb-0">D-VHS Filmsammlung</h1>
-            <a href="{{ url_for('benutzer_liste') }}" class="btn btn-outline-light">
-                Benutzer verwalten
-            </a>
         </div>
         
         <!-- Flash Messages -->
