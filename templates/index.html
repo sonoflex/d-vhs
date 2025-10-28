@@ -125,23 +125,75 @@
             {% endif %}
         {% endwith %}
         
-        <!-- Filter und Ansicht -->
-        <div class="card card-body bg-secondary text-light mb-4">
-            <div class="row g-3 align-items-end">
-                <!-- Besitzer-Filter -->
-                <div class="col-md-3">
-                    <label class="form-label">Nach Besitzer filtern</label>
-                    <select class="form-select" id="besitzerFilter" onchange="applyFilter()">
-                        <option value="" {% if not besitzer_filter %}selected{% endif %}>Alle Filme</option>
-                        <option value="ohne" {% if besitzer_filter == 'ohne' %}selected{% endif %}>Ohne Besitzer</option>
-                        {% for user in benutzer %}
-                            <option value="{{ user.name }}" {% if besitzer_filter == user.name %}selected{% endif %}>
-                                {{ user.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+        <!-- Filter, Ansicht und Buttons -->
+        <div class="d-flex align-items-center mb-4 gap-2">
+            <!-- Filter Toggle Button -->
+            <button class="btn btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="false">
+                <i class="bi bi-filter"></i>
+            </button>
+            
+            <!-- Ansicht umschalten (nur Icons) -->
+            <div>
+                {% if ansicht == 'liste' %}
+                    <button class="btn btn-light" type="button" onclick="switchView('kacheln')" title="Zur Kachelansicht">
+                        <i class="bi bi-grid-fill"></i>
+                    </button>
+                {% else %}
+                    <button class="btn btn-light" type="button" onclick="switchView('liste')" title="Zur Listenansicht">
+                        <i class="bi bi-list"></i>
+                    </button>
+                {% endif %}
+            </div>
+            
+            <!-- Film hinzufügen Button (nur für angemeldete Nutzer) -->
+            {% if session.get('benutzer_name') %}
+            <button class="btn btn-primary ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#addForm">
+                + Film hinzufügen
+            </button>
+            {% endif %}
+        </div>
+        
+        <!-- Filter Panel (einklapbar) -->
+        <div class="collapse mb-4" id="filterPanel">
+            <div class="card card-body bg-secondary text-light">
+                <div class="row g-3 align-items-end">
+                    <!-- Besitzer-Filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">Nach Besitzer filtern</label>
+                        <select class="form-select" id="besitzerFilter" onchange="applyFilter()">
+                            <option value="" {% if not besitzer_filter %}selected{% endif %}>Alle Filme</option>
+                            <option value="ohne" {% if besitzer_filter == 'ohne' %}selected{% endif %}>Ohne Besitzer</option>
+                            {% for user in benutzer %}
+                                <option value="{{ user.name }}" {% if besitzer_filter == user.name %}selected{% endif %}>
+                                    {{ user.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Wunschliste-Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label">Wunschliste</label>
+                        <select class="form-select" id="wunschlisteFilter" onchange="applyFilter()">
+                            <option value="" {% if not wunschliste_filter %}selected{% endif %}>Alle</option>
+                            <option value="ja" {% if wunschliste_filter == 'ja' %}selected{% endif %}>Auf Wunschliste</option>
+                            <option value="nein" {% if wunschliste_filter == 'nein' %}selected{% endif %}>Nicht auf Wunschliste</option>
+                        </select>
+                    </div>
+
+                    <!-- Genre-Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label">Genre</label>
+                        <select class="form-select" id="genreFilter" onchange="applyFilter()">
+                            <option value="" {% if not genre_filter %}selected{% endif %}>Alle</option>
+                            {% for genre in all_genres %}
+                                <option value="{{ genre }}" {% if genre_filter == genre %}selected{% endif %}>
+                                    {{ genre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                
                 <!-- Jahr-Filter -->
                 <div class="col-md-2">
                     <label class="form-label">Erscheinungsjahr von</label>
@@ -157,29 +209,6 @@
                     <button type="button" class="btn btn-primary" onclick="applyFilter()">Filtern</button>
                 </div>
                 
-                <!-- Ansicht umschalten (nur Icons) -->
-                <div class="col-auto">
-                    {% if ansicht == 'liste' %}
-                        <!-- Zeige Grid-Icon, um zur Kachelansicht zu wechseln -->
-                        <button class="btn btn-light" type="button" onclick="switchView('kacheln')" title="Zur Kachelansicht">
-                            <i class="bi bi-grid-fill"></i>
-                        </button>
-                    {% else %}
-                        <!-- Zeige List-Icon, um zur Listenansicht zu wechseln -->
-                        <button class="btn btn-light" type="button" onclick="switchView('liste')" title="Zur Listenansicht">
-                            <i class="bi bi-list"></i>
-                        </button>
-                    {% endif %}
-                </div>
-                
-                <!-- Film hinzufügen Button (nur für angemeldete Nutzer) -->
-                {% if session.get('benutzer_name') %}
-                <div class="col-md-4">
-                    <button class="btn btn-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#addForm">
-                        Neuen Film hinzufügen
-                    </button>
-                </div>
-                {% endif %}
             </div>
         </div>
         
@@ -296,11 +325,15 @@
             const ansicht = document.querySelector('input[name="ansicht"]:checked')?.value || 'liste';
             const jahrVon = document.getElementById('jahrVon').value;
             const jahrBis = document.getElementById('jahrBis').value;
+            const wunschliste = document.getElementById('wunschlisteFilter').value;
+            const genre = document.getElementById('genreFilter').value;
             
             const params = new URLSearchParams();
             if (besitzer) params.append('besitzer', besitzer);
             if (jahrVon) params.append('jahr_von', jahrVon);
             if (jahrBis) params.append('jahr_bis', jahrBis);
+            if (wunschliste) params.append('wunschliste', wunschliste);
+            if (genre) params.append('genre', genre);
             params.append('ansicht', ansicht);
             
             window.location.href = '?' + params.toString();

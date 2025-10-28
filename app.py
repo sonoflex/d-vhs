@@ -193,6 +193,12 @@ def index():
     jahr_von = request.args.get("jahr_von", "")
     jahr_bis = request.args.get("jahr_bis", "")
     
+    # Filter nach Wunschliste
+    wunschliste_filter = request.args.get("wunschliste", "")
+    
+    # Filter nach Genre
+    genre_filter = request.args.get("genre", "")
+    
     # Query aufbauen
     query = Film.query
     
@@ -216,12 +222,32 @@ def index():
         except ValueError:
             pass
     
+    if wunschliste_filter == "ja":
+        query = query.filter_by(wunschliste=True)
+    elif wunschliste_filter == "nein":
+        query = query.filter_by(wunschliste=False)
+    
+    if genre_filter:
+        # Filter nach Genre (case-insensitive, weil Genres komma-separiert sind)
+        query = query.filter(Film.genres.ilike(f"%{genre_filter}%"))
+    
     filme = query.all()
     benutzer = Benutzer.query.order_by(Benutzer.name).all()
     
+    # Sammle alle Genres aus den Filmen für die Dropdown
+    all_genres = set()
+    all_films = Film.query.all()
+    for film in all_films:
+        if film.genres:
+            for genre in film.genres.split(", "):
+                all_genres.add(genre.strip())
+    all_genres = sorted(list(all_genres))
+    
     return render_template("index.html", filme=filme, benutzer=benutzer, 
                           besitzer_filter=besitzer_filter, ansicht=ansicht,
-                          jahr_von=jahr_von, jahr_bis=jahr_bis)
+                          jahr_von=jahr_von, jahr_bis=jahr_bis,
+                          wunschliste_filter=wunschliste_filter,
+                          genre_filter=genre_filter, all_genres=all_genres)
 
 @app.route("/add", methods=["POST"])
 @login_erforderlich
