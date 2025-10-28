@@ -175,25 +175,46 @@ def logout():
     flash(f"Auf Wiedersehen {name}!", "info")
     return redirect(url_for("index"))
 
+
 @app.route("/")
 def index():
     # Filter nach Besitzer
     besitzer_filter = request.args.get("besitzer", "")
-    ansicht = request.args.get("ansicht", "liste")  # "liste" oder "kacheln"
+    ansicht = request.args.get("ansicht", "liste")
+    
+    # Filter nach Jahr (von bis)
+    jahr_von = request.args.get("jahr_von", "")
+    jahr_bis = request.args.get("jahr_bis", "")
     
     # Query aufbauen
     query = Film.query
+    
     if besitzer_filter:
         if besitzer_filter == "ohne":
             query = query.filter(Film.besitzer.is_(None))
         else:
             query = query.filter_by(besitzer=besitzer_filter)
     
+    if jahr_von:
+        try:
+            jahr_von_int = int(jahr_von)
+            query = query.filter(Film.year >= jahr_von_int)
+        except ValueError:
+            pass
+    
+    if jahr_bis:
+        try:
+            jahr_bis_int = int(jahr_bis)
+            query = query.filter(Film.year <= jahr_bis_int)
+        except ValueError:
+            pass
+    
     filme = query.all()
     benutzer = Benutzer.query.order_by(Benutzer.name).all()
     
     return render_template("index.html", filme=filme, benutzer=benutzer, 
-                          besitzer_filter=besitzer_filter, ansicht=ansicht)
+                          besitzer_filter=besitzer_filter, ansicht=ansicht,
+                          jahr_von=jahr_von, jahr_bis=jahr_bis)
 
 @app.route("/add", methods=["POST"])
 @login_erforderlich

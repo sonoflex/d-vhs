@@ -129,7 +129,7 @@
         <div class="card card-body bg-secondary text-light mb-4">
             <div class="row g-3 align-items-end">
                 <!-- Besitzer-Filter -->
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Nach Besitzer filtern</label>
                     <select class="form-select" id="besitzerFilter" onchange="applyFilter()">
                         <option value="" {% if not besitzer_filter %}selected{% endif %}>Alle Filme</option>
@@ -140,6 +140,21 @@
                             </option>
                         {% endfor %}
                     </select>
+                </div>
+                
+                <!-- Jahr-Filter -->
+                <div class="col-md-2">
+                    <label class="form-label">Erscheinungsjahr von</label>
+                    <input type="number" class="form-control" id="jahrVon" value="{{ jahr_von }}" placeholder="z.B. 1980">
+                </div>
+                
+                <div class="col-md-2">
+                    <label class="form-label">bis</label>
+                    <input type="number" class="form-control" id="jahrBis" value="{{ jahr_bis }}" placeholder="z.B. 2024">
+                </div>
+                
+                <div class="col-auto">
+                    <button type="button" class="btn btn-primary" onclick="applyFilter()">Filtern</button>
                 </div>
                 
                 <!-- Ansicht umschalten (nur Icons) -->
@@ -275,10 +290,14 @@
     <script>
         function applyFilter() {
             const besitzer = document.getElementById('besitzerFilter').value;
-            const ansicht = document.querySelector('input[name="ansicht"]:checked').value;
+            const ansicht = document.querySelector('input[name="ansicht"]:checked')?.value || 'liste';
+            const jahrVon = document.getElementById('jahrVon').value;
+            const jahrBis = document.getElementById('jahrBis').value;
             
             const params = new URLSearchParams();
             if (besitzer) params.append('besitzer', besitzer);
+            if (jahrVon) params.append('jahr_von', jahrVon);
+            if (jahrBis) params.append('jahr_bis', jahrBis);
             params.append('ansicht', ansicht);
             
             window.location.href = '?' + params.toString();
