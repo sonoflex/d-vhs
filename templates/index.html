@@ -7,12 +7,26 @@
     <!-- Google Fonts: Inter 100 + 300 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300&family=Bitcount+Grid+Single&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         body { font-family: 'Inter', sans-serif; font-weight: 300; }
         h1, .card-title { font-weight: 100; }
+        
+        .site-title {
+            font-family: 'Bitcount Grid Single', sans-serif;
+            font-weight: 400;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+        }
+        
+        .site-subtitle {
+            font-size: 0.85rem;
+            color: #adb5bd;
+            font-weight: 300;
+            margin-top: 0.25rem;
+        }
         
         /* Kachelansicht Styles */
         .movie-grid {
@@ -90,7 +104,10 @@
     <div class="container py-5">
         <!-- Header mit Benutzer-Dropdown -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="mb-0">D-VHS Filmsammlung</h1>
+            <div>
+                <h1 class="site-title mb-0">D-VHS</h1>
+                <p class="site-subtitle mb-0">Dezentralisiertes Video-Home-Sharing</p>
+            </div>
             
             <!-- Benutzer-Dropdown -->
             <div class="dropdown">
