@@ -42,8 +42,11 @@
             <h5 class="card-title">Neuen Benutzer hinzufügen</h5>
             <form action="{{ url_for('add_benutzer') }}" method="POST">
                 <div class="row g-2">
-                    <div class="col-auto flex-grow-1">
+                    <div class="col-md flex-grow-1">
                         <input type="text" class="form-control" name="name" placeholder="Benutzername" required>
+                    </div>
+                    <div class="col-md flex-grow-1">
+                        <input type="password" class="form-control" name="password" placeholder="Passwort" required>
                     </div>
                     <div class="col-auto">
                         <button type="submit" class="btn btn-primary">Hinzufügen</button>
