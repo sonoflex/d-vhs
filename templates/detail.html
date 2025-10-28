@@ -75,6 +75,18 @@
                 </div>
                 {% endif %}
 
+                <!-- Genres -->
+                {% if film.genres %}
+                <div class="detail-section">
+                    <div class="info-label">Genre</div>
+                    <div class="info-value">
+                        {% for genre in film.genres.split(', ') %}
+                            <span class="badge bg-secondary me-2 mb-2">{{ genre }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Beschreibung -->
                 <div class="detail-section">
                     <div class="info-label">Handlung</div>

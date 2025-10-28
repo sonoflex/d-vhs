@@ -33,6 +33,7 @@ class Film(db.Model):
     besitzer = db.Column(db.String(100))
     verliehen_an = db.Column(db.String(100))
     verliehen_seit = db.Column(db.DateTime)
+    genres = db.Column(db.String(500))  # Komma-separierte Liste von Genres
 
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -138,12 +139,17 @@ def fetch_film_data_tmdb(tmdb_id):
     if data.get("poster_path"):
         poster_url = f"https://image.tmdb.org/t/p/w500{data.get('poster_path')}"
     
+    # Extrahiere Genres
+    genres = data.get("genres", [])
+    genres_str = ", ".join([g["name"] for g in genres]) if genres else ""
+    
     return {
         "title": data.get("title"),
         "release_date": data.get("release_date"),
         "overview": data.get("overview"),
         "tmdb_id": movie_id,
-        "poster_url": poster_url
+        "poster_url": poster_url,
+        "genres": genres_str
     }
 
 # Routen
@@ -234,6 +240,7 @@ def add_film():
         logging.info(f"Overview: {film_data.get('overview')}")
         logging.info(f"TMDb-ID: {film_data.get('tmdb_id')}")
         logging.info(f"Poster: {film_data.get('poster_url')}")
+        logging.info(f"Genres: {film_data.get('genres')}")
         
         # Prüfe ob Film bereits existiert
         existing = Film.query.filter_by(tmdb_id=film_data.get('tmdb_id')).first()
@@ -246,7 +253,8 @@ def add_film():
             year=int(film_data.get("release_date", "0")[:4]) if film_data.get("release_date") else None,
             beschreibung=film_data.get("overview", ""),
             tmdb_id=film_data.get("tmdb_id"),
-            poster_url=film_data.get("poster_url")
+            poster_url=film_data.get("poster_url"),
+            genres=film_data.get("genres", "")
         )
         
         db.session.add(film)
