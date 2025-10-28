@@ -277,7 +277,7 @@
                                             📀 Verliehen an {{ film.verliehen_an }} seit {{ film.verliehen_seit.strftime('%d.%m.%Y') }}
                                         </p>
                                     {% endif %}
-                                    <p class="card-text">{{ film.beschreibung or 'Keine Beschreibung verfügbar' }}</p>
+                                    <p class="card-text d-none d-xl-block">{{ film.beschreibung or 'Keine Beschreibung verfügbar' }}</p>
                                     {% if film.tmdb_id %}
                                         <p class="small text-muted">
                                             <a href="https://www.themoviedb.org/movie/{{ film.tmdb_id }}" target="_blank" class="text-info">
