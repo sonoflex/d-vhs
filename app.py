@@ -7,6 +7,9 @@ import os
 import re
 from datetime import datetime
 from functools import wraps
+from flask_migrate import Migrate
+
+# ... existierende Imports ...
 
 # Flask Setup
 app = Flask(__name__)
@@ -26,6 +29,7 @@ else:
     logging.warning("⚠ DATABASE_URL nicht gesetzt - verwende SQLite (Daten gehen nach Deployment verloren!)")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +50,9 @@ class Film(db.Model):
     verliehen_seit = db.Column(db.DateTime)
     genres = db.Column(db.String(500))  # Komma-separierte Liste von Genres
     wunschliste = db.Column(db.Boolean, default=True)
+
+    # Neue Spalte zum Testen:
+    # rating = db.Column(db.Float)  # <-- Neue Zeile
 
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -313,6 +320,10 @@ def add_film():
          # Hole aktuellen Benutzer
         current_user = Benutzer.query.filter_by(id=session.get("benutzer_id")).first()
         
+        # Prüfe welcher Button geklickt wurde
+        action = request.form.get("action", "have")
+        is_wishlist = (action == "wishlist")
+        
         film = Film(
             title=film_data.get("title"),
             year=int(film_data.get("release_date", "0")[:4]) if film_data.get("release_date") else None,
@@ -321,7 +332,7 @@ def add_film():
             poster_url=film_data.get("poster_url"),
             genres=film_data.get("genres", ""),
             besitzer=current_user.name if current_user else None,
-            wunschliste=True
+            wunschliste=is_wishlist
         )
         
         db.session.add(film)
