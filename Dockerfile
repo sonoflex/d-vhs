@@ -11,8 +11,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App kopieren
 COPY . .
 
+# Entrypoint-Script kopieren und ausführbar machen
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
 # Port öffnen
 EXPOSE 5000
 
-# Startbefehl
-CMD ["python", "app.py"]
+# Startbefehl mit Entrypoint-Script
+CMD ["./entrypoint.sh"]

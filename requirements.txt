@@ -6,3 +6,4 @@ werkzeug==3.0.1
 requests==2.31.0
 psycopg2-binary==2.9.9
 Flask-Migrate==4.0.5
+gunicorn==21.2.0

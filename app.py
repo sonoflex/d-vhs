@@ -8,8 +8,9 @@ import re
 from datetime import datetime
 from functools import wraps
 from flask_migrate import Migrate
+from dotenv import load_dotenv
 
-# ... existierende Imports ...
+load_dotenv() 
 
 # Flask Setup
 app = Flask(__name__)
@@ -52,7 +53,7 @@ class Film(db.Model):
     wunschliste = db.Column(db.Boolean, default=True)
 
     # Neue Spalte zum Testen:
-    # rating = db.Column(db.Float)  # <-- Neue Zeile
+    rating = db.Column(db.Float)  # <-- Neue Zeile
 
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
