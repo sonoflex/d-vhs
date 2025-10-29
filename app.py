@@ -52,9 +52,6 @@ class Film(db.Model):
     genres = db.Column(db.String(500))  # Komma-separierte Liste von Genres
     wunschliste = db.Column(db.Boolean, default=True)
 
-    # Neue Spalte zum Testen:
-    rating = db.Column(db.Float)  # <-- Neue Zeile
-
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
