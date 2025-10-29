@@ -1,10 +1,11 @@
 #!/bin/bash
+set -e
 
 echo "Running database migrations..."
-flask db upgrade 2>/dev/null || echo "No migrations yet"
+flask db upgrade
 
 echo "Initializing admin users..."
-flask init-users 2>/dev/null || echo "Could not initialize users"
+flask init-users
 
 echo ""
 echo "================================"
