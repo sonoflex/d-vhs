@@ -135,7 +135,7 @@
                         {% if film.wunschliste %}
                             <div class="alert alert-info mb-3">
                                 <strong>Film noch nicht vorhanden</strong><br>
-                                <small>Dieser Film steht auf einer Wunschliste</small>
+                                <small>Steht auf der Wunschliste von {{ film.besitzer }}</small>
                             </div>
                         {% elif film.verliehen_an %}
                             <div class="alert alert-warning mb-3">
@@ -164,7 +164,7 @@
                                             <span class="badge bg-secondary fs-6">{{ request.borrower.name }}</span>
                                             {% if session.get('benutzer_name') %}
                                             <form action="{{ url_for('delete_lending_request', request_id=request.id) }}" method="POST" style="display:inline;">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Anfrage wirklich löschen?')" title="Anfrage löschen">✕</button>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" >x</button>
                                             </form>
                                             {% endif %}
                                         </div>
@@ -189,7 +189,7 @@
                                     <div class="col-md-4">
                                         <label class="form-label small">An wen verleihen?</label>
                                         <select name="verliehen_an" class="form-select form-select-sm" required>
-                                            <option value="">-- Benutzer auswählen --</option>
+                                            <option value="">-- Benutzer --</option>
                                             {% for user in benutzer %}
                                                 <option value="{{ user.name }}">{{ user.name }}</option>
                                             {% endfor %}
@@ -207,9 +207,6 @@
                                         <button type="submit" class="btn btn-sm btn-warning">Verleihen</button>
                                     </div>
                                 </div>
-                                <small class="form-text text-muted">
-                                    Standard: Heutiges Datum. Kann angepasst werden für nachträgliche Einträge.
-                                </small>
                             </form>
                             {% endif %}
                         {% endif %}
@@ -224,7 +221,7 @@
                                 <input class="form-check-input" type="checkbox" id="wunschliste" 
                                        onchange="this.form.submit()" {% if film.wunschliste %}checked{% endif %}>
                                 <label class="form-check-label" for="wunschliste">
-                                    Auf meiner Wunschliste
+                                    Auf der Wunschliste
                                 </label>
                             </div>
                         </form>
