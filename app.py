@@ -288,7 +288,7 @@ def index():
         # Filter nach Genre (case-insensitive, weil Genres komma-separiert sind)
         query = query.filter(Film.genres.ilike(f"%{genre_filter}%"))
     
-    filme = query.all()
+    filme = query.order_by(Film.year.desc()).all()
     benutzer = Benutzer.query.order_by(Benutzer.name).all()
     
     # Sammle alle Genres aus den Filmen für die Dropdown
