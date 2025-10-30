@@ -122,7 +122,7 @@
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-light" href="{{ url_for('leihboard') }}">Leih Board</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-light" href="{{ url_for('benutzer_liste') }}">Benutzer verwalten</a></li>
+                        <li><a class="dropdown-item text-light" href="{{ url_for('benutzer_liste') }}">Nutzer verwalten</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-light" href="{{ url_for('logout') }}">Abmelden</a></li>
                     {% else %}
@@ -243,8 +243,8 @@
                         </div>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" name="action" value="have" class="btn btn-success flex-grow-1">Hab ich</button>
-                        <button type="submit" name="action" value="wishlist" class="btn btn-warning flex-grow-1">Auf Wunschliste</button>
+                        <button type="submit" name="action" value="have" class="btn btn-success">Hab ich</button>
+                        <button type="submit" name="action" value="wishlist" class="btn btn-warning">Auf Wunschliste</button>
                     </div>
                 </form>
             </div>

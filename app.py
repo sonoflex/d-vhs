@@ -459,6 +459,9 @@ def verleihen(film_id):
 
     db.session.commit()
     
+    next_page = request.form.get('next', 'film_detail')
+    if next_page == 'leihboard':
+        return redirect(url_for('leihboard'))
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route("/film/<int:film_id>/zurueckgeben", methods=["POST"])
@@ -475,6 +478,9 @@ def zurueckgeben(film_id):
     film.verliehen_seit = None
     db.session.commit()
     
+    next_page = request.form.get('next', 'film_detail')
+    if next_page == 'leihboard':
+        return redirect(url_for('leihboard'))
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route('/film/<int:film_id>/request-lending', methods=['POST'])
@@ -535,7 +541,10 @@ def delete_lending_request(request_id):
     
     db.session.delete(lending_request)
     db.session.commit()
-    
+
+    next_page = request.form.get('next', 'film_detail')
+    if next_page == 'leihboard':
+        return redirect(url_for('leihboard'))
     return redirect(url_for('film_detail', film_id=film_id))
 
 @app.route("/benutzer")
@@ -598,6 +607,38 @@ def delete_benutzer(user_id):
     flash(f"Benutzer '{name}' wurde gelöscht", "success")
     return redirect(url_for("benutzer_liste"))
 
+@app.route('/change-password', methods=['POST'])
+@login_erforderlich
+def change_password():
+    """Ändert das Passwort des eingeloggten Nutzers"""
+    old_password = request.form.get('old_password')
+    new_password = request.form.get('new_password')
+    new_password_confirm = request.form.get('new_password_confirm')
+    
+    current_user = Benutzer.query.get(session['benutzer_id'])
+    
+    # Prüfe altes Passwort
+    if not current_user.check_password(old_password):
+        flash('Altes Passwort ist falsch', 'error')
+        return redirect(url_for('benutzer_liste'))
+    
+    # Prüfe ob neue Passwörter identisch sind
+    if new_password != new_password_confirm:
+        flash('Neue Passwörter stimmen nicht überein', 'error')
+        return redirect(url_for('benutzer_liste'))
+    
+    # Prüfe ob neues Passwort nicht leer ist
+    if not new_password or len(new_password) < 3:
+        flash('Neues Passwort muss mindestens 3 Zeichen lang sein', 'error')
+        return redirect(url_for('benutzer_liste'))
+    
+    # Passwort ändern
+    current_user.set_password(new_password)
+    db.session.commit()
+    
+    flash('Passwort erfolgreich geändert', 'success')
+    return redirect(url_for('benutzer_liste'))
+
 @app.route("/delete/<int:film_id>", methods=["POST"])
 @login_erforderlich
 def delete_film(film_id):
@@ -615,7 +656,7 @@ def delete_film(film_id):
 @app.route('/leihboard')
 @login_erforderlich
 def leihboard():
-    """Zeigt das Leih Board mit Anfragen an den Nutzer, von dem Nutzer und aktuell verliehenen Filmen"""
+    """Zeigt das Leih Board mit Anfragen an den Nutzer, von dem Nutzer und verliehenen Filmen"""
     current_user = Benutzer.query.get(session['benutzer_id'])
     
     # Anfragen an den eingeloggten Nutzer (er ist Besitzer)
@@ -630,7 +671,11 @@ def leihboard():
     lent_films = Film.query.filter_by(besitzer=current_user.name).filter(Film.verliehen_an.isnot(None)).all()
     lent_films = sorted(lent_films, key=lambda x: x.verliehen_an or "")
     
-    return render_template('leihboard.html', requests_to_me=requests_to_me, requests_from_me=requests_from_me, lent_films=lent_films, datetime=datetime)
+    # Filme die der eingeloggte Nutzer von anderen geliehen hat
+    borrowed_films = Film.query.filter_by(verliehen_an=current_user.name).all()
+    borrowed_films = sorted(borrowed_films, key=lambda x: x.besitzer or "")
+    
+    return render_template('leihboard.html', requests_to_me=requests_to_me, requests_from_me=requests_from_me, lent_films=lent_films, borrowed_films=borrowed_films, datetime=datetime)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -44,7 +44,7 @@
 
         <!-- Anfragen an mich -->
         <div class="table-container">
-            <h5 class="mb-3">Anfragen an mich</h5>
+            <h3 class="mb-3">Anfragen an mich</h3>
             {% if requests_to_me %}
                 <div class="table-responsive">
                     <table class="table table-dark table-hover">
@@ -68,6 +68,7 @@
                                         <!-- Verleihen Button -->
                                         <form action="{{ url_for('verleihen', film_id=request.film.id) }}" method="POST" style="display:inline;">
                                             <input type="hidden" name="verliehen_an" value="{{ request.borrower.name }}">
+                                            <input type="hidden" name="next" value="leihboard">
                                             <button type="submit" class="btn btn-sm btn-warning" title="Verleihen">
                                                 <i class="bi bi-hand-thumbs-up"></i> Verleihen
                                             </button>
@@ -75,6 +76,7 @@
                                         
                                         <!-- Löschen Button -->
                                         <form action="{{ url_for('delete_lending_request', request_id=request.id) }}" method="POST" style="display:inline;">
+                                            <input type="hidden" name="next" value="leihboard">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Anfrage wirklich löschen?')" title="Anfrage löschen">
                                                 Löschen
                                             </button>
@@ -95,7 +97,7 @@
 
         <!-- Anfragen von mir -->
         <div class="table-container mt-5">
-            <h5 class="mb-3">Anfragen von mir</h5>
+            <h3 class="mb-3">Anfragen von mir</h3>
             {% if requests_from_me %}
                 <div class="table-responsive">
                     <table class="table table-dark table-hover">
@@ -118,6 +120,7 @@
                                     <td class="text-center">
                                         <!-- Löschen Button -->
                                         <form action="{{ url_for('delete_lending_request', request_id=request.id) }}" method="POST" style="display:inline;">
+                                            <input type="hidden" name="next" value="leihboard">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Anfrage wirklich löschen?')" title="Anfrage löschen">
                                                 Löschen
                                             </button>
@@ -138,7 +141,7 @@
 
         <!-- Aktuell verliehen -->
         <div class="table-container mt-5">
-            <h5 class="mb-3">Aktuell verliehen</h5>
+            <h3 class="mb-3">Aktuell verliehen</h3>
             {% if lent_films %}
                 <div class="table-responsive">
                     <table class="table table-dark table-hover">
@@ -166,6 +169,7 @@
                                     <td class="text-center">
                                         <!-- Zurückgeben Button -->
                                         <form action="{{ url_for('zurueckgeben', film_id=film.id) }}" method="POST" style="display:inline;">
+                                            <input type="hidden" name="next" value="leihboard">
                                             <button type="submit" class="btn btn-sm btn-success" title="Film zurückgeben">
                                                 Zurückgegeben
                                             </button>
@@ -180,6 +184,55 @@
                 <div class="alert alert-info">
                     <strong>Keine Filme verliehen</strong><br>
                     <small>Du hast aktuell keine Filme verliehen</small>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Von mir ausgeliehen -->
+        <div class="table-container mt-5">
+            <h3 class="mb-3">Von mir ausgeliehen</h3>
+            {% if borrowed_films %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Filmtitel</th>
+                                <th>Von</th>
+                                <th>Seit</th>
+                                <th class="text-center">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for film in borrowed_films %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('film_detail', film_id=film.id) }}" class="text-light">
+                                            {{ film.title }}
+                                        </a>
+                                    </td>
+                                    <td>{{ film.besitzer }}</td>
+                                    <td>
+                                        {{ film.verliehen_seit.strftime('%d.%m.%Y') }}<br>
+                                        <small class="text-muted">({{ (datetime.now() - film.verliehen_seit).days }} Tage)</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <!-- Zurückgeben Button -->
+                                        <form action="{{ url_for('zurueckgeben', film_id=film.id) }}" method="POST" style="display:inline;">
+                                            <input type="hidden" name="next" value="leihboard">
+                                            <button type="submit" class="btn btn-sm btn-success" title="Film zurückgegeben">
+                                                Zurückgegeben
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <strong>Keine Filme ausgeliehen</strong><br>
+                    <small>Du hast aktuell keine Filme von anderen geliehen</small>
                 </div>
             {% endif %}
         </div>
