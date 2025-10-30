@@ -52,6 +52,21 @@ class Film(db.Model):
     genres = db.Column(db.String(500))  # Komma-separierte Liste von Genres
     wunschliste = db.Column(db.Boolean, default=True)
 
+class LendingRequest(db.Model):
+    """Modell für Film-Ausleih-Anfragen"""
+    id = db.Column(db.Integer, primary_key=True)
+    borrower_id = db.Column(db.Integer, db.ForeignKey('benutzer.id'), nullable=False)  # Wer möchte leihen?
+    owner_id = db.Column(db.Integer, db.ForeignKey('benutzer.id'), nullable=False)      # Wer besitzt den Film?
+    film_id = db.Column(db.Integer, db.ForeignKey('film.id'), nullable=False)           # Welcher Film?
+    
+    # Relationships für einfachere Abfragen
+    borrower = db.relationship('Benutzer', foreign_keys=[borrower_id])
+    owner = db.relationship('Benutzer', foreign_keys=[owner_id])
+    film = db.relationship('Film')
+    
+    def __repr__(self):
+        return f'<LendingRequest {self.borrower.name} → {self.owner.name}: {self.film.title}>'
+
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
@@ -66,28 +81,7 @@ class Benutzer(db.Model):
         """Passwort überprüfen"""
         return check_password_hash(self.password_hash, password)
 
-# DB initialisieren
-with app.app_context():
-    os.makedirs("data", exist_ok=True)
-    db.create_all()
-    
-   # Initial-Benutzer aus .env anlegen falls noch nicht vorhanden
-    if Benutzer.query.count() == 0:
-        initial_users_env = os.environ.get("INITIAL_USERS", "")
-        
-        if initial_users_env:
-            # Format: "username:password,username:password"
-            for user_pair in initial_users_env.split(","):
-                if ":" in user_pair:
-                    username, password = user_pair.strip().split(":", 1)
-                    user = Benutzer(name=username.strip())
-                    user.set_password(password.strip())
-                    user.is_admin = True  # Initial-Benutzer sind Admins
-                    db.session.add(user)
-                    logging.info(f"Initial-Admin-Benutzer '{username}' angelegt")
-            db.session.commit()
-        else:
-            logging.warning("INITIAL_USERS nicht in .env definiert")
+# DB initialisieren - wird durch Flask-Migrate verwaltet, deher gibt es das nicht. Initiale Nutzer werden durch ein CLI Comand erstellt
 
 # Login-Decorator
 def login_erforderlich(f):
@@ -185,6 +179,29 @@ def fetch_film_data_tmdb(tmdb_id):
         "poster_url": poster_url,
         "genres": genres_str
     }
+
+@app.cli.command()
+def init_users():
+    """Initialize admin users from INITIAL_USERS environment variable"""
+    with app.app_context():
+        os.makedirs("data", exist_ok=True)
+        
+        if Benutzer.query.count() == 0:
+            initial_users_env = os.environ.get("INITIAL_USERS", "")
+            
+            if initial_users_env:
+                # Format: "username:password,username:password"
+                for user_pair in initial_users_env.split(","):
+                    if ":" in user_pair:
+                        username, password = user_pair.strip().split(":", 1)
+                        user = Benutzer(name=username.strip())
+                        user.set_password(password.strip())
+                        user.is_admin = True
+                        db.session.add(user)
+                        logging.info(f"Initial-Admin-Benutzer '{username}' angelegt")
+                db.session.commit()
+            else:
+                logging.warning("INITIAL_USERS nicht in .env definiert")
 
 # Routen
 @app.context_processor
@@ -359,7 +376,14 @@ def add_film():
 def film_detail(film_id):
     film = Film.query.get_or_404(film_id)
     benutzer = Benutzer.query.order_by(Benutzer.name).all()
-    return render_template("detail.html", film=film, benutzer=benutzer, datetime=datetime)
+    lending_requests = LendingRequest.query.filter_by(film_id=film_id).all()
+    
+    # Prüfe ob aktueller Benutzer bereits eine Anfrage gestellt hat
+    user_has_request = False
+    if session.get('benutzer_name'):
+        user_has_request = any(req.borrower.name == session.get('benutzer_name') for req in lending_requests)
+    
+    return render_template("detail.html", film=film, benutzer=benutzer, lending_requests=lending_requests, user_has_request=user_has_request, datetime=datetime)
 
 @app.route("/film/<int:film_id>/besitzer", methods=["POST"])
 @login_erforderlich
@@ -427,9 +451,14 @@ def verleihen(film_id):
     
     film.verliehen_an = verliehen_an
     film.verliehen_seit = verliehen_seit
+
+     # Lösche die Ausleih-Anfrage für diesen Film von dem Benutzer, an den verliehen wird
+    borrower = Benutzer.query.filter_by(name=verliehen_an).first()
+    if borrower:
+        LendingRequest.query.filter_by(film_id=film_id, borrower_id=borrower.id).delete()
+
     db.session.commit()
     
-    flash(f"'{film.title}' an {verliehen_an} verliehen", "success")
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route("/film/<int:film_id>/zurueckgeben", methods=["POST"])
@@ -446,8 +475,68 @@ def zurueckgeben(film_id):
     film.verliehen_seit = None
     db.session.commit()
     
-    flash(f"'{film.title}' von {verliehen_an} zurückgegeben", "success")
     return redirect(url_for("film_detail", film_id=film_id))
+
+@app.route('/film/<int:film_id>/request-lending', methods=['POST'])
+def request_lending(film_id):
+    # Prüfe ob User angemeldet ist
+    if 'benutzer_name' not in session:
+        flash('Du musst angemeldet sein um einen Film auszuleihen!', 'danger')
+        return redirect(url_for('login'))
+    
+    benutzer = Benutzer.query.filter_by(name=session['benutzer_name']).first()
+    if not benutzer:
+        flash('Benutzer nicht gefunden!', 'danger')
+        return redirect(url_for('index'))
+    
+    film = Film.query.get_or_404(film_id)
+    
+    # Prüfungen
+    if not film.besitzer: 
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    if film.wunschliste:
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    if film.verliehen_an:
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    if film.besitzer == benutzer.name:
+        return redirect(url_for('film_detail', film_id=film_id))
+    existing_request = LendingRequest.query.filter_by(
+        film_id=film_id, 
+        borrower_id=benutzer.id
+    ).first()
+    
+    if existing_request:
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    owner = Benutzer.query.filter_by(name=film.besitzer).first()
+    if not owner:
+        return redirect(url_for('film_detail', film_id=film_id))
+    # Neue Anfrage erstellen
+    lending_request = LendingRequest(
+        film_id=film_id,
+        borrower_id=benutzer.id,
+        owner_id=owner.id
+    )
+    db.session.add(lending_request)
+    db.session.commit()
+    
+    return redirect(url_for('film_detail', film_id=film_id))
+
+@app.route('/lending-request/<int:request_id>/delete', methods=['POST'])
+@login_erforderlich
+def delete_lending_request(request_id):
+    """Löscht eine Ausleih-Anfrage"""
+    lending_request = LendingRequest.query.get_or_404(request_id)
+    
+    film_id = lending_request.film_id
+    
+    db.session.delete(lending_request)
+    db.session.commit()
+    
+    return redirect(url_for('film_detail', film_id=film_id))
 
 @app.route("/benutzer")
 @login_erforderlich
@@ -500,6 +589,9 @@ def delete_benutzer(user_id):
         flash(f"Benutzer '{name}' kann nicht gelöscht werden, da er noch {filme_count} Film(e) besitzt", "error")
         return redirect(url_for("benutzer_liste"))
     
+    # Lösche alle Leihanfragen des Benutzers (als Anfragender oder als Besitzer)
+    LendingRequest.query.filter((LendingRequest.borrower_id == user_id) | (LendingRequest.owner_id == user_id)).delete()
+
     db.session.delete(user)
     db.session.commit()
     
@@ -511,6 +603,10 @@ def delete_benutzer(user_id):
 def delete_film(film_id):
     film = Film.query.get_or_404(film_id)
     title = film.title
+
+    # Lösche alle Ausleih-Anfragen für diesen Film
+    LendingRequest.query.filter_by(film_id=film_id).delete()
+
     db.session.delete(film)
     db.session.commit()
     flash(f"Film '{title}' wurde gelöscht", "success")
