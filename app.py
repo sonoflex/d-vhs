@@ -612,5 +612,25 @@ def delete_film(film_id):
     flash(f"Film '{title}' wurde gelöscht", "success")
     return redirect(url_for("index"))
 
+@app.route('/leihboard')
+@login_erforderlich
+def leihboard():
+    """Zeigt das Leih Board mit Anfragen an den Nutzer, von dem Nutzer und aktuell verliehenen Filmen"""
+    current_user = Benutzer.query.get(session['benutzer_id'])
+    
+    # Anfragen an den eingeloggten Nutzer (er ist Besitzer)
+    requests_to_me = LendingRequest.query.filter_by(owner_id=current_user.id).all()
+    requests_to_me = sorted(requests_to_me, key=lambda x: x.borrower.name)
+    
+    # Anfragen von dem eingeloggten Nutzer (er ist Anfragender)
+    requests_from_me = LendingRequest.query.filter_by(borrower_id=current_user.id).all()
+    requests_from_me = sorted(requests_from_me, key=lambda x: x.owner.name)
+    
+    # Filme die vom eingeloggten Nutzer verliehen sind
+    lent_films = Film.query.filter_by(besitzer=current_user.name).filter(Film.verliehen_an.isnot(None)).all()
+    lent_films = sorted(lent_films, key=lambda x: x.verliehen_an or "")
+    
+    return render_template('leihboard.html', requests_to_me=requests_to_me, requests_from_me=requests_from_me, lent_films=lent_films, datetime=datetime)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
