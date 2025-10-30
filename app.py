@@ -589,6 +589,23 @@ def add_benutzer():
     flash(f"Benutzer '{name}' hinzugefügt", "success")
     return redirect(url_for("benutzer_liste"))
 
+@app.route('/make-admin/<int:user_id>', methods=['POST'])
+@login_erforderlich
+@admin_erforderlich
+def make_admin(user_id):
+    """Macht einen Benutzer zum Admin"""
+    user = Benutzer.query.get_or_404(user_id)
+    
+    if user.is_admin:
+        flash(f'Benutzer \'{user.name}\' ist bereits Admin', 'warning')
+        return redirect(url_for('benutzer_liste'))
+    
+    user.is_admin = True
+    db.session.commit()
+    
+    flash(f'Benutzer \'{user.name}\' ist nun Admin', 'success')
+    return redirect(url_for('benutzer_liste'))
+
 @app.route("/benutzer/delete/<int:user_id>", methods=["POST"])
 @admin_erforderlich
 def delete_benutzer(user_id):

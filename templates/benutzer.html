@@ -116,15 +116,27 @@
                                 <span class="badge bg-info">{{ item.filme_count }}</span>
                             </small>
                         </div>
-                        <!-- Löschen Button nur für Admins -->
+                        <!-- Buttons nur für Admins -->
                         {% if session.get('benutzer_admin') %}
-                        <form action="{{ url_for('delete_benutzer', user_id=item.user.id) }}" method="POST" style="display: inline;">
-                            <button type="submit" 
-                                    class="btn btn-danger btn-sm" 
-                                    onclick="return confirm('Benutzer &quot;{{ item.user.name }}&quot; wirklich löschen?')">
-                                Löschen
-                            </button>
-                        </form>
+                            <!-- Zu Admin machen Button (nur für Nicht-Admins) -->
+                            {% if not item.user.is_admin %}
+                            <form action="{{ url_for('make_admin', user_id=item.user.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" 
+                                        class="btn btn-info btn-sm" 
+                                        onclick="return confirm('Nutzer &quot;{{ item.user.name }}&quot; zu Admin machen?')">
+                                    Zu Admin machen
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                            <!-- Löschen Button -->
+                            <form action="{{ url_for('delete_benutzer', user_id=item.user.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" 
+                                        class="btn btn-danger btn-sm" 
+                                        onclick="return confirm('Benutzer &quot;{{ item.user.name }}&quot; wirklich löschen?')">
+                                    Löschen
+                                </button>
+                            </form>
                         {% endif %}
                     </div>
                 {% endfor %}
