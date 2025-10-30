@@ -376,7 +376,14 @@ def add_film():
 def film_detail(film_id):
     film = Film.query.get_or_404(film_id)
     benutzer = Benutzer.query.order_by(Benutzer.name).all()
-    return render_template("detail.html", film=film, benutzer=benutzer, datetime=datetime)
+    lending_requests = LendingRequest.query.filter_by(film_id=film_id).all()
+    
+    # Prüfe ob aktueller Benutzer bereits eine Anfrage gestellt hat
+    user_has_request = False
+    if session.get('benutzer_name'):
+        user_has_request = any(req.borrower.name == session.get('benutzer_name') for req in lending_requests)
+    
+    return render_template("detail.html", film=film, benutzer=benutzer, lending_requests=lending_requests, user_has_request=user_has_request, datetime=datetime)
 
 @app.route("/film/<int:film_id>/besitzer", methods=["POST"])
 @login_erforderlich
@@ -465,6 +472,82 @@ def zurueckgeben(film_id):
     
     flash(f"'{film.title}' von {verliehen_an} zurückgegeben", "success")
     return redirect(url_for("film_detail", film_id=film_id))
+
+@app.route('/film/<int:film_id>/request-lending', methods=['POST'])
+def request_lending(film_id):
+    # Prüfe ob User angemeldet ist
+    if 'benutzer_name' not in session:
+        flash('Du musst angemeldet sein um einen Film auszuleihen!', 'danger')
+        return redirect(url_for('login'))
+    
+    benutzer = Benutzer.query.filter_by(name=session['benutzer_name']).first()
+    if not benutzer:
+        flash('Benutzer nicht gefunden!', 'danger')
+        return redirect(url_for('index'))
+    
+    film = Film.query.get_or_404(film_id)
+    
+    # Prüfungen
+    if not film.besitzer: 
+        flash('Dieser Film hat keinen Besitzer!', 'danger')
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    if film.wunschliste:
+        flash('Du kannst keinen Film ausleihen, der auf deiner Wunschliste ist!', 'danger')
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    if film.verliehen_an:
+        flash('Dieser Film ist bereits verliehen!', 'warning')
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    if film.besitzer == benutzer.name:
+        flash('Du kannst deinen eigenen Film nicht ausleihen!', 'warning')
+        return redirect(url_for('film_detail', film_id=film_id))
+    existing_request = LendingRequest.query.filter_by(
+        film_id=film_id, 
+        borrower_id=benutzer.id
+    ).first()
+    
+    if existing_request:
+        flash('Du hast bereits eine Anfrage für diesen Film!', 'warning')
+        return redirect(url_for('film_detail', film_id=film_id))
+    
+    owner = Benutzer.query.filter_by(name=film.besitzer).first()
+    if not owner:
+        flash('Filmbesitzer nicht gefunden!', 'danger')
+        return redirect(url_for('film_detail', film_id=film_id))
+    # Neue Anfrage erstellen
+    lending_request = LendingRequest(
+        film_id=film_id,
+        borrower_id=benutzer.id,
+        owner_id=owner.id
+    )
+    db.session.add(lending_request)
+    db.session.commit()
+    
+    flash('Ausleih-Anfrage gesendet!', 'success')
+    return redirect(url_for('film_detail', film_id=film_id))
+
+@app.route('/lending-request/<int:request_id>/delete', methods=['POST'])
+@login_erforderlich
+def delete_lending_request(request_id):
+    """Löscht eine Ausleih-Anfrage (Besitzer oder Anfragender kann löschen)"""
+    lending_request = LendingRequest.query.get_or_404(request_id)
+    current_user = Benutzer.query.get(session['benutzer_id'])
+    
+    # Nur Besitzer oder Anfragender darf löschen
+    if lending_request.owner_id != current_user.id and lending_request.borrower_id != current_user.id:
+        flash('Du darfst diese Anfrage nicht löschen!', 'danger')
+        return redirect(url_for('film_detail', film_id=lending_request.film_id))
+    
+    film_id = lending_request.film_id
+    borrower_name = lending_request.borrower.name
+    
+    db.session.delete(lending_request)
+    db.session.commit()
+    
+    flash(f'Ausleih-Anfrage von {borrower_name} gelöscht', 'success')
+    return redirect(url_for('film_detail', film_id=film_id))
 
 @app.route("/benutzer")
 @login_erforderlich

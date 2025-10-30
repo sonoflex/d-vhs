@@ -154,7 +154,34 @@
                             {% endif %}
                         {% else %}
                             <span class="text-muted mb-3 d-block">Film ist verfügbar</span>
-                            
+                            <!-- Ausleihwünsche -->
+                            {% if lending_requests %}
+                            <div class="detail-section">
+                                <div class="info-label">Ausleihwünsche</div>
+                                <div class="info-value">
+                                    {% for request in lending_requests %}
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="badge bg-secondary fs-6">{{ request.borrower.name }}</span>
+                                            {% if session.get('benutzer_name') %}
+                                            <form action="{{ url_for('delete_lending_request', request_id=request.id) }}" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Anfrage wirklich löschen?')" title="Anfrage löschen">✕</button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if session.get('benutzer_name') and film.besitzer and not film.wunschliste and session.get('benutzer_name') != film.besitzer and not user_has_request %}
+                                <form method="POST" action="{{ url_for('request_lending', film_id=film.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-handshake"></i> Ich möchte diesen Film ausleihen
+                                    </button>
+                                </form>
+                            {% endif %}
+                    </div>     
+                    <div class="info-value">      
                             <!-- Verleihen-Formular -->
                             {% if session.get('benutzer_name') %}
                             <form action="{{ url_for('verleihen', film_id=film.id) }}" method="POST">
@@ -188,7 +215,6 @@
                         {% endif %}
                     </div>
                 </div>
-
                 <!-- Wunschliste -->
                 {% if session.get('benutzer_name') %}
                 <div class="detail-section">
