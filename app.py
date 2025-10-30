@@ -387,6 +387,7 @@ def film_detail(film_id):
 
 @app.route("/film/<int:film_id>/besitzer", methods=["POST"])
 @login_erforderlich
+@admin_erforderlich
 def update_besitzer(film_id):
     film = Film.query.get_or_404(film_id)
     besitzer = request.form.get("besitzer")
@@ -562,6 +563,7 @@ def benutzer_liste():
 
 @app.route("/benutzer/add", methods=["POST"])
 @login_erforderlich
+@admin_erforderlich
 def add_benutzer():
     name = request.form.get("name", "").strip()
     password = request.form.get("password", "").strip()
@@ -644,6 +646,12 @@ def change_password():
 def delete_film(film_id):
     film = Film.query.get_or_404(film_id)
     title = film.title
+    current_user = Benutzer.query.get(session['benutzer_id'])
+    
+    # Prüfe ob Nutzer Admin oder Besitzer ist
+    if not current_user.is_admin and current_user.name != film.besitzer:
+        flash('Du darfst diesen Film nicht löschen!', 'danger')
+        return redirect(url_for('film_detail', film_id=film_id))
 
     # Lösche alle Ausleih-Anfragen für diesen Film
     LendingRequest.query.filter_by(film_id=film_id).delete()

@@ -53,7 +53,7 @@
         <!-- Passwort ändern -->
         <div class="card bg-secondary text-light mb-4">
             <div class="card-body">
-                <h5 class="card-title mb-4">Passwort ändern</h5>
+                <h5 class="card-title mb-4">Passwort ändern für {{ session.get('benutzer_name') }}</h5>
                 <form action="{{ url_for('change_password') }}" method="POST">
                     <div class="mb-3">
                         <label for="old_password" class="form-label">Altes Passwort</label>
@@ -77,29 +77,30 @@
         {% endif %}
         
         <!-- ============== NUTZER VERWALTUNG ============== -->
+        {% if session.get('benutzer_admin') %} 
         <div class="section-title">Nutzer Verwaltung</div>
         
-        <!-- Neuen Benutzer hinzufügen -->
-        <div class="card card-body bg-secondary text-light mb-4">
-            <h5 class="card-title">Neuen Nutzer hinzufügen</h5>
-            <form action="{{ url_for('add_benutzer') }}" method="POST">
-                <div class="row g-2">
-                    <div class="col-md flex-grow-1">
-                        <input type="text" class="form-control" name="name" placeholder="Benutzername" required>
+            <!-- Neuen Benutzer hinzufügen -->
+            <div class="card card-body bg-secondary text-light mb-4">
+                <h5 class="card-title">Neuen Nutzer hinzufügen</h5>
+                <form action="{{ url_for('add_benutzer') }}" method="POST">
+                    <div class="row g-2">
+                        <div class="col-md flex-grow-1">
+                            <input type="text" class="form-control" name="name" placeholder="Benutzername" required>
+                        </div>
+                        <div class="col-md flex-grow-1">
+                            <input type="password" class="form-control" name="password" placeholder="Passwort" required>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                        </div>
                     </div>
-                    <div class="col-md flex-grow-1">
-                        <input type="password" class="form-control" name="password" placeholder="Passwort" required>
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-primary">Hinzufügen</button>
-                    </div>
-                </div>
-            </form>
-        </div>
+                </form>
+            </div>
         
-        <!-- Benutzerliste -->
-        <h5 class="mb-3">Alle Nutzer</h5>
-        {% if benutzer_data %}
+            <!-- Benutzerliste -->
+            <h5 class="mb-3">Alle Nutzer</h5>
+            {% if benutzer_data %}
             <div class="list-group">
                 {% for item in benutzer_data %}
                     <div class="list-group-item bg-dark text-light border-light d-flex justify-content-between align-items-center">
@@ -133,7 +134,8 @@
                 Noch keine Benutzer vorhanden.
             </div>
         {% endif %}
-    </div>
+        </div>
+        {% endif %}
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
