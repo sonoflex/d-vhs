@@ -120,7 +120,7 @@
                     {% if session.get('benutzer_name') %}
                         <li><span class="dropdown-item-text text-light">{{ session.get('benutzer_name') }}</span></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-light" href="{{ url_for('leihboard') }}">Leih Board</a></li>
+                        <li><a class="dropdown-item text-light" href="{{ url_for('leihboard') }}">Leih-Board</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-light" href="{{ url_for('benutzer_liste') }}">Nutzer verwalten</a></li>
                         <li><hr class="dropdown-divider"></li>
@@ -313,7 +313,11 @@
                                 
                                 {% if film.verliehen_an %}
                                     <div class="movie-tile-status">
-                                        📀 Verliehen
+                                        Verliehen
+                                    </div>
+                                {% elif film.wunschliste %}
+                                    <div class="movie-tile-status" style="background-color: #6c757d;">
+                                        Wunschliste
                                     </div>
                                 {% endif %}
                                 
