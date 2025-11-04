@@ -315,8 +315,8 @@ def index():
                 all_genres.add(genre.strip())
     all_genres = sorted(list(all_genres))
 
-     # Ermittle die IDs der letzten 10 hinzugefügten Filme
-    neueste_filme_ids = [f.id for f in Film.query.order_by(Film.created_at.desc()).limit(10).all()]
+    # Sortierung: erst nach Datum, dann nach ID (für Filme mit gleichem created_at)
+    neueste_filme_ids = [f.id for f in Film.query.order_by(Film.created_at.desc(), Film.id.desc()).limit(10).all()]
     
     return render_template(
         "index.html", 
