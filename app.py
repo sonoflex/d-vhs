@@ -314,12 +314,23 @@ def index():
             for genre in film.genres.split(", "):
                 all_genres.add(genre.strip())
     all_genres = sorted(list(all_genres))
+
+     # Ermittle die IDs der letzten 10 hinzugefügten Filme
+    neueste_filme_ids = [f.id for f in Film.query.order_by(Film.created_at.desc()).limit(10).all()]
     
-    return render_template("index.html", filme=filme, benutzer=benutzer, 
-                          besitzer_filter=besitzer_filter, ansicht=ansicht,
-                          jahr_von=jahr_von, jahr_bis=jahr_bis,
-                          wunschliste_filter=wunschliste_filter,
-                          genre_filter=genre_filter, all_genres=all_genres)
+    return render_template(
+        "index.html", 
+        filme=filme, 
+        benutzer=benutzer, 
+        besitzer_filter=besitzer_filter, 
+        ansicht=ansicht,
+        jahr_von=jahr_von, 
+        jahr_bis=jahr_bis,
+        wunschliste_filter=wunschliste_filter,
+        genre_filter=genre_filter, 
+        all_genres=all_genres,
+        neueste_filme_ids=neueste_filme_ids  # NEU: An Template übergeben
+    )
 
 @app.route("/add", methods=["POST"])
 @login_erforderlich
@@ -744,7 +755,7 @@ def rss_feed():
     from flask import Response
     
     # Hole die letzten 50 Feed Events
-    events = FeedEvent.query.order_by(FeedEvent.created_at.desc()).limit(50).all()
+    events = FeedEvent.query.order_by(FeedEvent.created_at.desc()).limit(5).all()
     
     # RSS Feed Header
     rss_xml = '''<?xml version="1.0" encoding="UTF-8"?>

@@ -276,12 +276,14 @@
                                             <span class="badge bg-primary ms-2">{{ film.besitzer }}</span>
                                             {% if film.wunschliste %}
                                                 <span class="badge bg-secondary ms-1">Wunschliste</span>
+                                            {% elif film.id in neueste_filme_ids %}
+                                                <span class="badge bg-success ms-1">Neu</span>
                                             {% endif %}
                                         {% endif %}
                                     </h5>
                                     {% if film.verliehen_an %}
                                         <p class="small text-warning mb-2">
-                                            📀 Verliehen an {{ film.verliehen_an }} seit {{ film.verliehen_seit.strftime('%d.%m.%Y') }}
+                                            Verliehen an {{ film.verliehen_an }} seit {{ film.verliehen_seit.strftime('%d.%m.%Y') }}
                                         </p>
                                     {% endif %}
                                     <p class="card-text d-none d-xl-block">{{ film.beschreibung or 'Keine Beschreibung verfügbar' }}</p>
@@ -320,6 +322,10 @@
                                 {% elif film.wunschliste %}
                                     <div class="movie-tile-status" style="background-color: #6c757d;">
                                         Wunschliste
+                                    </div>
+                                {% elif film.id in neueste_filme_ids %}
+                                    <div class="movie-tile-status" style="background-color: rgba(40, 167, 69, 0.9);">
+                                        Neu
                                     </div>
                                 {% endif %}
                                 
