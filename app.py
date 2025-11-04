@@ -67,6 +67,19 @@ class LendingRequest(db.Model):
     
     def __repr__(self):
         return f'<LendingRequest {self.borrower.name} → {self.owner.name}: {self.film.title}>'
+    
+class FeedEvent(db.Model):
+    """Modell für RSS Feed Events"""
+    id = db.Column(db.Integer, primary_key=True)
+    event_type = db.Column(db.String(50), nullable=False)  # 'new_film' oder 'now_available'
+    film_id = db.Column(db.Integer, db.ForeignKey('film.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    film = db.relationship('Film')
+    
+    def __repr__(self):
+        return f'<FeedEvent {self.event_type}: {self.film.title}>'
 
 class Benutzer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -81,6 +94,7 @@ class Benutzer(db.Model):
     def check_password(self, password):
         """Passwort überprüfen"""
         return check_password_hash(self.password_hash, password)
+    
 
 # DB initialisieren - wird durch Flask-Migrate verwaltet, deher gibt es das nicht. Initiale Nutzer werden durch ein CLI Comand erstellt
 
@@ -352,7 +366,16 @@ def add_film():
         )
         
         db.session.add(film)
-        db.session.commit()
+        db.session.commit() # <-- ERST den Film speichern, damit er eine ID bekommt
+
+                
+        # Feed Event erstellen für neuen Film
+        feed_event = FeedEvent(
+            event_type='new_film',
+            film_id=film.id
+        )
+        db.session.add(feed_event)
+        db.session.commit()  # <-- Event separat speichern
         
         flash(f"Film '{film.title}' erfolgreich hinzugefügt", "success")
         
@@ -412,7 +435,18 @@ def update_besitzer(film_id):
 @login_erforderlich
 def toggle_wunschliste(film_id):
     film = Film.query.get_or_404(film_id)
+    # Merke vorherigen Status
+    war_wunschliste = film.wunschliste
     film.wunschliste = not film.wunschliste
+
+    # Wenn von Wunschliste zu Verfügbar: Feed Event erstellen
+    if war_wunschliste and not film.wunschliste:
+        feed_event = FeedEvent(
+            event_type='now_available',
+            film_id=film.id
+        )
+        db.session.add(feed_event)
+
     db.session.commit()
     
     if film.wunschliste:
@@ -702,6 +736,90 @@ def leihboard():
     borrowed_films = sorted(borrowed_films, key=lambda x: x.besitzer or "")
     
     return render_template('leihboard.html', requests_to_me=requests_to_me, requests_from_me=requests_from_me, lent_films=lent_films, borrowed_films=borrowed_films, datetime=datetime)
+
+@app.route('/rss')
+@app.route('/feed.xml')
+def rss_feed():
+    """Generiert einen RSS Feed für Film-Events"""
+    from flask import Response
+    
+    # Hole die letzten 50 Feed Events
+    events = FeedEvent.query.order_by(FeedEvent.created_at.desc()).limit(50).all()
+    
+    # RSS Feed Header
+    rss_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>D-VHS - Neue Filme & Updates</title>
+        <link>{base_url}</link>
+        <description>Neue Filme und Statusänderungen in der D-VHS Sammlung</description>
+        <language>de-de</language>
+        <atom:link href="{feed_url}" rel="self" type="application/rss+xml" />
+'''.format(
+        base_url=request.url_root.rstrip('/'),
+        feed_url=request.url_root.rstrip('/') + url_for('rss_feed')
+    )
+    
+    # Füge jedes Event als Item hinzu
+    for event in events:
+        film = event.film
+        
+        # Event-spezifischer Prefix
+        if event.event_type == 'new_film':
+            if film.wunschliste:
+                prefix = "Wunschliste:"
+            else:
+                prefix = "Neu:"
+        elif event.event_type == 'now_available':
+            prefix = "Jetzt verfügbar:"
+        else:
+            prefix = "📢"
+        
+        # Erstelle den Titel mit Prefix
+        title = f"{prefix} {film.title}"
+        if film.year:
+            title += f" ({film.year})"
+        
+        # Escape XML special characters in title
+        title = (title
+            .replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;')
+            .replace('"', '&quot;')
+            .replace("'", '&apos;'))
+        
+        # Erstelle die Beschreibung
+        beschreibung_parts = []
+        if film.besitzer:
+            beschreibung_parts.append(f"Besitzer: {film.besitzer}")
+        if film.genres:
+            beschreibung_parts.append(f"Genres: {film.genres}")
+        beschreibung = " | ".join(beschreibung_parts)
+        
+        # Film-Detail-URL
+        film_url = request.url_root.rstrip('/') + url_for('film_detail', film_id=film.id)
+        
+        # Formatiere das Datum im RFC 822 Format
+        pub_date = event.created_at.strftime('%a, %d %b %Y %H:%M:%S GMT')
+        
+        # GUID
+        guid = f"{request.url_root.rstrip('/')}/event/{event.id}"
+        
+        rss_xml += f'''
+        <item>
+            <title>{title}</title>
+            <link>{film_url}</link>
+            <description>{beschreibung}</description>
+            <pubDate>{pub_date}</pubDate>
+            <guid isPermaLink="false">{guid}</guid>
+        </item>
+'''
+    
+    # RSS Feed Footer
+    rss_xml += '''    </channel>
+</rss>'''
+    
+    return Response(rss_xml, mimetype='application/rss+xml')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
