@@ -51,6 +51,7 @@ class Film(db.Model):
     verliehen_seit = db.Column(db.DateTime)
     genres = db.Column(db.String(500))  # Komma-separierte Liste von Genres
     wunschliste = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class LendingRequest(db.Model):
     """Modell für Film-Ausleih-Anfragen"""
