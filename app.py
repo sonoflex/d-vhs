@@ -32,11 +32,28 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# Logging
-logging.basicConfig(level=logging.INFO)
+# Logging 
+if __name__ != "__main__":
+    # Wenn von Gunicorn gestartet, verwende dessen Logger
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+    # Leite auch das root logging zu Gunicorn um
+    logging.root.handlers = gunicorn_logger.handlers
+    logging.root.setLevel(gunicorn_logger.level)
+else:
+    # Lokale Entwicklung (wenn direkt mit python app.py gestartet)
+    logging.basicConfig(level=logging.INFO)
 
 # TMDb API Key aus environment variable
 TMDB_API_KEY = os.environ.get("TMDB_API_KEY")
+
+# Domain Redirect Middleware
+@app.before_request
+def redirect_to_custom_domain():
+    """Leitet von Railway-Domain zur Custom-Domain um"""
+    if request.host == 'dvhs-production.up.railway.app':
+        return redirect(f'https://dvhs.12bft.de{request.full_path.rstrip("?")}', code=301)
 
 # Model
 class Film(db.Model):
@@ -316,7 +333,8 @@ def index():
     all_genres = sorted(list(all_genres))
 
     # Sortierung: erst nach Datum, dann nach ID (für Filme mit gleichem created_at)
-    neueste_filme_ids = [f.id for f in Film.query.order_by(Film.created_at.desc(), Film.id.desc()).limit(10).all()]
+    neueste_filme_ids = [f.id for f in Film.query.filter(Film.created_at.isnot(None)).order_by(Film.created_at.desc(), Film.id.desc()).limit(10).all()]
+    logging.info(f"Top 10 neueste Filme IDs: {neueste_filme_ids}")
     
     return render_template(
         "index.html", 
@@ -452,6 +470,8 @@ def toggle_wunschliste(film_id):
 
     # Wenn von Wunschliste zu Verfügbar: Feed Event erstellen
     if war_wunschliste and not film.wunschliste:
+        film.created_at = datetime.utcnow()
+        logging.info(f"Film '{film.title}' (ID: {film.id}) created_at aktualisiert auf: {film.created_at}")
         feed_event = FeedEvent(
             event_type='now_available',
             film_id=film.id
@@ -464,7 +484,7 @@ def toggle_wunschliste(film_id):
         flash(f"'{film.title}' zur Wunschliste hinzugefügt", "success")
     else:
         flash(f"'{film.title}' von der Wunschliste entfernt", "success")
-    
+        
     return redirect(url_for("film_detail", film_id=film_id))
 
 @app.route("/film/<int:film_id>/verleihen", methods=["POST"])
